@@ -136,4 +136,14 @@ app.get("/user/following/", authenticateToken, async (request, response) => {
   response.send(FollowingList);
 });
 
-//
+//Get Followers List
+app.get("/user/followers/", authenticateToken, async (request, response) => {
+  const { username } = request;
+  const getUserId = `SELECT user_id FROM user WHERE username = '${username}';`;
+  const userId = await db.get(getUserId);
+  const getFollowingList = `
+  SELECT name FROM follower INNER JOIN user ON follower.follower_user_id = user.user_id
+  WHERE follower.following_user_id = ${userId.user_id}`;
+  const FollowingList = await db.all(getFollowingList);
+  response.send(FollowingList);
+});
