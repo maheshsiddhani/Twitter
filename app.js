@@ -114,15 +114,12 @@ app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
   const getUserId = `SELECT user_id FROM user WHERE username = '${username}';`;
   const userId = await db.get(getUserId);
   console.log(userId.user_id);
-  try {
-    const feedQuery = `
-  SELECT * FROM follower INNER JOIN tweet ON follower.following_user_id = tweet.user_id
-  WHERE follower_user_id = ${userId.user_id}
-  `;
-
-    const data = await db.all(feedQuery);
-    response.send(data);
-  } catch (e) {
-    console.log(e.message);
-  }
+  const feedQuery = `
+    SELECT user.username,T.tweet,T.date_time AS dateTime FROM (follower INNER JOIN tweet ON 
+        follower.following_user_id = tweet.user_id) AS T
+        INNER JOIN user ON T.following_user_id = user.user_id
+        WHERE follower_user_id = ${userId.user_id}
+    LIMIT 4;`;
+  const data = await db.all(feedQuery);
+  response.send(data);
 });
