@@ -204,3 +204,34 @@ app.get(
     }
   }
 );
+
+//Tweet replies
+app.get(
+  "/tweets/:tweetId/replies/",
+  authenticateToken,
+  async (request, response) => {
+    const { username } = request;
+    const { tweetId } = request.params;
+    console.log(tweetId);
+    const getUserId = `SELECT user_id FROM user WHERE username = '${username}';`;
+    const userId = await db.get(getUserId);
+    const checkUser = `
+    SELECT * FROM follower INNER JOIN tweet ON following_user_id = tweet.user_id
+    WHERE follower_user_id = ${userId.user_id} AND tweet_id = ${tweetId};`;
+    const correctRequest = await db.get(checkUser);
+    console.log(correctRequest);
+    if (correctRequest !== undefined) {
+      const getRepliesQuery = `
+        SELECT username AS name,reply 
+        FROM 
+            (tweet INNER JOIN reply ON tweet.tweet_id = reply.tweet_id) INNER JOIN 
+            user ON reply.user_id = user.user_id
+        WHERE tweet.tweet_id = ${tweetId}`;
+      const data = await db.all(getRepliesQuery);
+      response.send({ replies: data });
+    } else {
+      response.status(401);
+      response.send("Invalid Request");
+    }
+  }
+);
