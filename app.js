@@ -147,3 +147,56 @@ app.get("/user/followers/", authenticateToken, async (request, response) => {
   const FollowingList = await db.all(getFollowingList);
   response.send(FollowingList);
 });
+
+//Get Tweet By ID
+app.get("/tweets/:tweetId", authenticateToken, async (request, response) => {
+  const { tweetId } = request.params;
+  const { username } = request;
+  const getUserId = `SELECT user_id FROM user WHERE username = '${username}';`;
+  const userId = await db.get(getUserId);
+  const checkUserFollow = `
+  SELECT * FROM follower INNER JOIN tweet ON following_user_id = tweet.user_id
+  WHERE follower_user_id = ${userId.user_id} AND tweet_id = ${tweetId};`;
+  const check = await db.get(checkUserFollow);
+  console.log(check);
+  try {
+    const getTweet = `
+    SELECT tweet,count(DISTINCT like_id) AS likes,count(DISTINCT reply_id) AS replies,tweet.date_time AS dateTime
+    FROM ((follower INNER JOIN tweet ON follower.following_user_id = tweet.user_id)
+    INNER JOIN like ON tweet.tweet_id = like.tweet_id)
+    INNER JOIN reply ON tweet.tweet_id = reply.tweet_id
+    WHERE follower_user_id = ${userId.user_id} AND tweet.tweet_id = ${tweetId};`;
+    const data = await db.get(getTweet);
+    if (data.tweet === null) {
+      response.status(401);
+      response.send("Invalid Request");
+    } else {
+      response.send(data);
+    }
+    response.send(data);
+  } catch (e) {
+    response.send(e.message);
+  }
+});
+
+//Tweet Likes
+app.get(
+  "/tweets/:tweetId/likes/",
+  authenticateToken,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    const { username } = request;
+    const getUserId = `SELECT user_id FROM user WHERE username = '${username}';`;
+    const userId = await db.get(getUserId);
+    const Query = `
+    SELECT 
+       username
+    FROM 
+    ((follower INNER JOIN tweet ON following_user_id = tweet.user_id) 
+    INNER JOIN like ON tweet.tweet_id = like.tweet_id) 
+    INNER JOIN user ON like.user_id = user.user_id 
+    WHERE follower_user_id = ${userId.user_id} AND tweet.tweet_id = ${tweetId}`;
+    const data = await db.all(Query);
+    response.send({ likes: data.map((like) => like.username) });
+  }
+);
